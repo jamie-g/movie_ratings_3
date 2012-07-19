@@ -7,19 +7,19 @@ from collections import defaultdict
 import traceback
 import model
 from model import User
+from model import Movie
+from model import Rating 
 
 global db
 
 def movie_details(movie_id):
-    movie = db.movies.find_one({"_id": movie_id})
+    movie = get_movie(movie_id)
 
     if not movie:
         print "No movie with id %d"%movie_id
 
-    print """\
-%d: %s
-%s"""%(movie['_id'], movie['title'], ", ".join(movie['genres']))
-    pass
+    print movie
+    
 
 def error(msg = "Unknown command"):
     print "Error:", msg
@@ -41,12 +41,13 @@ def user_details(user_id):
 
 def user_rating(movie_id, user_id):
     rating = get_rating(movie_id, user_id)
+    print rating, '#'*10
     if not rating:
         print "Sorry, user %d has not rated movie %d"%(user_id, movie_id)
         return
     movie = get_movie(movie_id)
     print "User %d rated movie %d (%s) at %d stars"%(\
-            user_id, movie_id, movie['title'],
+            user_id, movie_id, movie.title,
             rating)
 
 def rate_movie(movie_id, rating):
@@ -54,11 +55,11 @@ def rate_movie(movie_id, rating):
     db.ratings.update({"movie_id": movie_id, "user_id": 0},
             {"$set": {"rating": rating}}, upsert=True)
     print "You rated movie %d: %s at %d stars."%(\
-            movie_id, movie['title'],
+            movie_id, movie.title,
             rating)
 
 def get_movie(movie_id):
-    return db.movies.find_one(movie_id)
+    return Movie.get(movie_id)
 
 def get_ratings(movie_id=None, user_id=None):
     query = {}
@@ -71,21 +72,23 @@ def get_ratings(movie_id=None, user_id=None):
     return [ rec for rec in records ]
 
 def get_rating(movie_id, user_id):
-    record = db.ratings.find_one({"movie_id": movie_id, "user_id": user_id})
+    record = Rating.get(movie_id, user_id)
+    print record, '&'*10
+    # record = db.ratings.find_one({"movie_id": movie_id, "user_id": user_id})
     if record:
-        return record['rating']
+        return record.rating
 
 def predict(movie_id):
     ratings = get_ratings(movie_id=movie_id)
     target_movie = get_movie(movie_id)
 
     for movie in rated_movies:
-    similarities = [ (pearson({}, {}) rating) for target_movie_id, rating in movie_pairs]
-    top_five = sorted(similarities)
-    top_five.reverse()
-    top_five = top_five[:5]
-    num = 0.0
-    den = 0.0
+        similarities = [ (pearson({}, {}), rating) for target_movie_id, rating in movie_pairs]
+        top_five = sorted(similarities)
+        top_five.reverse()
+        top_five = top_five[:5]
+        num = 0.0
+        den = 0.0
     # Use a weighted mean rather than a strict top similarity
     for sim, m in top_five:
         num += (float(sim) * m)
