@@ -29,11 +29,14 @@ def quit():
     sys.exit(0)
 
 def average_rating(movie_id):
-    rating_records = get_ratings(movie_id=movie_id)
-    ratings = [ rec['rating'] for rec in rating_records ]
-    avg = float(sum(ratings))/len(ratings)
+    movie = Movie.get(movie_id)
+    avg = movie.get_average()
+    print "%.1f stars"%(avg)
+    # rating_records = get_ratings(movie_id=movie_id)
+    # ratings = [ rec['rating'] for rec in rating_records ]
+    # avg = float(sum(ratings))/len(ratings)
 
-    print "%.2f"%(avg)
+    # print "%.2f"%(avg)
 
 def user_details(user_id):
     user = User.get(user_id)
@@ -41,7 +44,6 @@ def user_details(user_id):
 
 def user_rating(movie_id, user_id):
     rating = get_rating(movie_id, user_id)
-    print rating, '#'*10
     if not rating:
         print "Sorry, user %d has not rated movie %d"%(user_id, movie_id)
         return
@@ -50,37 +52,54 @@ def user_rating(movie_id, user_id):
             user_id, movie_id, movie.title,
             rating)
 
-def rate_movie(movie_id, rating):
+def rate_movie(movie_id, value):
     movie = get_movie(movie_id)
-    db.ratings.update({"movie_id": movie_id, "user_id": 0},
-            {"$set": {"rating": rating}}, upsert=True)
+    # rating = Rating(movie_id, value, 0)
+    # print rating, '$'*10
+    # print get_rating(movie_id, 0)
+    update = Rating.update_rating(movie_id, value)
+
+    # db.ratings.update({"movie_id": movie_id, "user_id": 0},
+    #         {"$set": {"rating": rating}}, upsert=True)
     print "You rated movie %d: %s at %d stars."%(\
             movie_id, movie.title,
-            rating)
+            value)
 
 def get_movie(movie_id):
     return Movie.get(movie_id)
 
 def get_ratings(movie_id=None, user_id=None):
+    movie = get_movie(movie_id)
+    records = Movie.ratings(movie) 
     query = {}
     if movie_id is not None:
         query['movie_id'] = movie_id
     if user_id is not None:
         query['user_id'] = user_id
 
-    records = db.ratings.find(query)
     return [ rec for rec in records ]
+
+    # records = #find either movie ratings or list of user ratings
+
+    # query = {}
+
+    # if movie_id is not None:
+    #     query['movie_id'] = movie_id
+    # if user_id is not None:
+    #     query['user_id'] = user_id
+
+    # records = Movie.ratings(query)
+    # print records
+    # return [ rec for rec in records ]
 
 def get_rating(movie_id, user_id):
     record = Rating.get(movie_id, user_id)
-    print record, '&'*10
-    # record = db.ratings.find_one({"movie_id": movie_id, "user_id": user_id})
     if record:
-        return record.rating
+        return record
 
 def predict(movie_id):
+    target_movie_id = get_movie(movie_id)
     ratings = get_ratings(movie_id=movie_id)
-    target_movie = get_movie(movie_id)
 
     for movie in rated_movies:
         similarities = [ (pearson({}, {}), rating) for target_movie_id, rating in movie_pairs]
@@ -135,11 +154,8 @@ def connect_db(host, port, user, password, db_name):
     return c[db_name]
 
 def main():
-    global db
+    connect()
     #db = pymongo.connection.Connection("localhost")
-    db = connect_db("dbh36.mongolab.com", 27367, "movie_user", "password", "movies")
-    db = db['movies']
-    model.db = db
 
     dispatch = {
             "movie": (movie_details, int),
@@ -155,5 +171,12 @@ def main():
         line = raw_input("> ")
         parse(line, dispatch)
    
+def connect():
+    global db
+    db = connect_db("dbh36.mongolab.com", 27367, "movie_user", "password", "movies")
+    db = db['movies']
+    model.db = db
+    return db
+
 if __name__ == "__main__":
     main()

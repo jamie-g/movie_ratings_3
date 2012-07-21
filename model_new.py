@@ -74,15 +74,5 @@ class Rating(object):
         rating_result = db.ratings.find_one({"user_id": user_id, "movie_id": movie_id})
         return rating_result['rating']
 
-    @staticmethod
-    def update_rating(movie_id, value):
-        update = db.ratings.update({"movie_id": movie_id, "user_id": 0},
-            {"rating": value, "movie_id": movie_id, "user_id": 0}, upsert=True)
-        return
-    
     def __str__(self):
         return "<Rating movie_id:%d, user_id:%d, value: %d>"%(self.movie_id, self.user_id, self.value)
-
-
-
-
